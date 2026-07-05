@@ -14,3 +14,6 @@ LNP_SHOW_DIR_NO_PROJECT=1
 
 # Cache directory (will be created if missing)
 LNP_CACHE_DIR="$HOME/.cache/low-noise-prompt"
+
+# Show runtime indicators (0 = hide, 1 = show)
+LNP_SHOW_RUNTIMES=1

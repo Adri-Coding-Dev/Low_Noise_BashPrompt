@@ -31,6 +31,15 @@ lnp::renderer::prompt() {
         ps1+="${sep}${git_str}"
     fi
 
+    # Runtime segment
+    if [[ "${LNP_SHOW_RUNTIMES:-1}" -eq 1 ]]; then
+        local runtime_str
+        runtime_str="$(lnp::renderer::_runtime_segment)"
+        if [[ -n "$runtime_str" ]]; then
+            ps1+="${sep}${runtime_str}"
+        fi
+    fi
+
     # Prompt symbol
     ps1+="${sep}$(lnp::colorize "$LNP_COLOR_PROMPT_SYMBOL" "$LNP_SYMBOL_PROMPT") "
 
@@ -78,4 +87,54 @@ lnp::renderer::_git_segment() {
     local open="$(lnp::colorize "$paren_color" "(")"
     local close="$(lnp::colorize "$paren_color" ")")"
     echo "${open}${gits}${close}"
+}
+
+# Build runtime indicators
+lnp::renderer::_runtime_segment() {
+    local parts=()
+
+    # Python
+    local python_env="${LNP_CONTEXT[python_env]}"
+    if [[ -n "$python_env" ]]; then
+        parts+=("$(lnp::colorize "$LNP_COLOR_PYTHON" "${LNP_SYMBOL_PYTHON}${python_env}")")
+    fi
+
+    # Node
+    local node_version="${LNP_CONTEXT[node_version]}"
+    if [[ -n "$node_version" ]]; then
+        parts+=("$(lnp::colorize "$LNP_COLOR_NODE" "${LNP_SYMBOL_NODE}${node_version}")")
+    fi
+
+    # Rust
+    local rust_version="${LNP_CONTEXT[rust_version]}"
+    if [[ -n "$rust_version" ]]; then
+        parts+=("$(lnp::colorize "$LNP_COLOR_RUST" "${LNP_SYMBOL_RUST}${rust_version}")")
+    fi
+
+    # Java
+    local java_version="${LNP_CONTEXT[java_version]}"
+    if [[ -n "$java_version" ]]; then
+        parts+=("$(lnp::colorize "$LNP_COLOR_JAVA" "${LNP_SYMBOL_JAVA}${java_version}")")
+    fi
+
+    # Docker
+    local docker_active="${LNP_CONTEXT[docker_active]}"
+    local docker_compose="${LNP_CONTEXT[docker_compose]}"
+    if [[ -n "$docker_active" ]]; then
+        local docker_icon="$LNP_SYMBOL_DOCKER"
+        [[ -n "$docker_compose" ]] && docker_icon+="$LNP_SYMBOL_DOCKER_COMPOSE"
+        parts+=("$(lnp::colorize "$LNP_COLOR_DOCKER" "$docker_icon")")
+    fi
+
+    # Kubernetes
+    local k8s_context="${LNP_CONTEXT[k8s_context]}"
+    if [[ -n "$k8s_context" ]]; then
+        parts+=("$(lnp::colorize "$LNP_COLOR_KUBERNETES" "${LNP_SYMBOL_KUBERNETES}${k8s_context}")")
+    fi
+
+    # Join with spaces
+    if [[ ${#parts[@]} -gt 0 ]]; then
+        local IFS=" "
+        echo "${parts[*]}"
+    fi
 }

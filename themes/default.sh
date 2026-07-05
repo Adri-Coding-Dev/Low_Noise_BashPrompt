@@ -40,3 +40,21 @@ LNP_SYMBOL_GIT_MERGE="M"
 LNP_SYMBOL_GIT_REBASE="R"
 LNP_SYMBOL_GIT_CHERRY="C"
 LNP_SYMBOL_GIT_BISECT="B"
+
+
+# Runtime colours
+LNP_COLOR_PYTHON="\e[38;5;46m"        # green
+LNP_COLOR_NODE="\e[38;5;118m"         # lime
+LNP_COLOR_RUST="\e[38;5;202m"         # orange
+LNP_COLOR_JAVA="\e[38;5;196m"         # red
+LNP_COLOR_DOCKER="\e[38;5;39m"        # blue
+LNP_COLOR_KUBERNETES="\e[38;5;63m"    # purple-blue
+
+# Runtime symbols
+LNP_SYMBOL_PYTHON="🐍"
+LNP_SYMBOL_NODE="⬢"
+LNP_SYMBOL_RUST="🦀"
+LNP_SYMBOL_JAVA="☕"
+LNP_SYMBOL_DOCKER="🐳"
+LNP_SYMBOL_DOCKER_COMPOSE="🐙"
+LNP_SYMBOL_KUBERNETES="☸️ "
