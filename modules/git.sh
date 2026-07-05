@@ -1,4 +1,4 @@
-# modules/git.sh - Git repository status detection
+# modules/git.sh - Git repository status detection (optimized)
 
 lnp::git::update() {
     # Quick check if inside a git work tree
@@ -10,13 +10,26 @@ lnp::git::update() {
     local git_dir
     git_dir="$(git rev-parse --git-dir 2>/dev/null)" || return
 
-    # Build cache key: HEAD ref, index mtime, stash count, special state files existence
-    local head_ref index_mtime stash_count state_files_md5 cache_key
+    # Cache key components (all fast, no external processes)
+    local head_ref index_mtime stash_count state_info cache_key
     head_ref="$(git rev-parse HEAD 2>/dev/null || echo 'none')"
     index_mtime="$(stat -c %Y "$git_dir/index" 2>/dev/null || echo '0')"
-    stash_count="$(git stash list 2>/dev/null | wc -l)"
-    state_files_md5="$(ls "$git_dir/MERGE_HEAD" "$git_dir/REBASE_HEAD" "$git_dir/CHERRY_PICK_HEAD" "$git_dir/BISECT_LOG" 2>/dev/null | sort | md5sum | cut -d' ' -f1)"
-    cache_key="${head_ref}:${index_mtime}:${stash_count}:${state_files_md5}"
+
+    # Stash count: use refs/stash file directly (no `git stash list`)
+    stash_count=0
+    if [[ -f "$git_dir/refs/stash" ]]; then
+        stash_count=$(wc -l < "$git_dir/refs/stash" 2>/dev/null || echo 0)
+    fi
+    stash_count="${stash_count##* }"
+
+    # State files info (no md5sum/sort)
+    state_info=""
+    [[ -f "$git_dir/MERGE_HEAD" ]]       && state_info+="M"
+    [[ -f "$git_dir/REBASE_HEAD" ]]      && state_info+="R"
+    [[ -f "$git_dir/CHERRY_PICK_HEAD" ]] && state_info+="C"
+    [[ -f "$git_dir/BISECT_LOG" ]]       && state_info+="B"
+
+    cache_key="${head_ref}:${index_mtime}:${stash_count}:${state_info}"
 
     # If cache matches, restore from cache
     if lnp::cache::validate "git_cache_key" "$cache_key"; then
@@ -24,24 +37,21 @@ lnp::git::update() {
         return
     fi
 
-    # Full detection
+    # ---- Full detection (runs only when needed) ----
     local branch="" ahead=0 behind=0 staged=0 modified=0 untracked=0 conflicts=0
     local detached=0
     local state=""
 
-    # Branch and upstream info
     local status_output
     status_output="$(git status --porcelain=v1 -b 2>/dev/null)" || status_output=""
 
     if [[ -z "$status_output" ]]; then
-        # Fallback if status fails
         branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null)"
         if [[ "$branch" == "HEAD" ]]; then
             detached=1
             branch="$(git rev-parse --short HEAD 2>/dev/null)"
         fi
     else
-        # Parse the branch line (first line)
         local branch_line
         branch_line="$(echo "$status_output" | head -n1)"
 
@@ -50,7 +60,6 @@ lnp::git::update() {
             branch="$(git rev-parse --short HEAD 2>/dev/null)"
         elif [[ "$branch_line" =~ ^##\ ([^\.]*?)(\.\.\..*)?$ ]]; then
             branch="${BASH_REMATCH[1]}"
-            # ahead/behind counts
             if [[ "$branch_line" =~ ahead\ ([0-9]+) ]]; then
                 ahead="${BASH_REMATCH[1]}"
             fi
@@ -72,36 +81,29 @@ lnp::git::update() {
             local x="${xy:0:1}"
             local y="${xy:1:1}"
 
-            # Count staged (index not space, not '?', not '!')
             if [[ "$x" != " " && "$x" != "?" && "$x" != "!" ]]; then
                 ((staged++))
             fi
-            # Count modified (worktree not space, not '?')
             if [[ "$y" != " " && "$y" != "?" ]]; then
                 ((modified++))
             fi
-            # Untracked
             if [[ "$xy" == "??" ]]; then
                 ((untracked++))
             fi
-            # Conflicts: standard conflict codes (DD, AU, UD, UA, DU, AA, UU)
             if [[ "$xy" =~ ^(DD|AU|UD|UA|DU|AA|UU)$ ]]; then
                 ((conflicts++))
             fi
         done < <(echo "$status_output" | tail -n +2)
     fi
 
-    # Stash count (already computed for cache key, strip spaces)
-    stash_count="${stash_count##* }"
-
-    # Special states
-    if [[ -f "$git_dir/MERGE_HEAD" ]]; then
+    # State from files
+    if [[ "$state_info" == *M* ]]; then
         state="merge"
-    elif [[ -f "$git_dir/REBASE_HEAD" ]]; then
+    elif [[ "$state_info" == *R* ]]; then
         state="rebase"
-    elif [[ -f "$git_dir/CHERRY_PICK_HEAD" ]]; then
+    elif [[ "$state_info" == *C* ]]; then
         state="cherry-pick"
-    elif [[ -f "$git_dir/BISECT_LOG" ]]; then
+    elif [[ "$state_info" == *B* ]]; then
         state="bisect"
     fi
 
@@ -112,6 +114,8 @@ lnp::git::update() {
     lnp::cache::set "git_cache_key" "$cache_key"
     lnp::git::_save_to_cache "$branch" "$detached" "$ahead" "$behind" "$staged" "$modified" "$untracked" "$conflicts" "$stash_count" "$state"
 }
+
+# (rest of functions unchanged: _clear_context, _set_context, _save_to_cache, _load_from_cache)
 
 lnp::git::_clear_context() {
     LNP_CONTEXT[git_branch]=""
@@ -168,5 +172,4 @@ lnp::git::_load_from_cache() {
     LNP_CONTEXT[git_state]="$(lnp::cache::get "git_state")"
 }
 
-# Register module
 LNP_MODULES+=("git")

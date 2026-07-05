@@ -1,12 +1,11 @@
-# core/colors.sh - ANSI escape code utilities
+# core/colors.sh - ANSI escape code utilities (PS1-safe)
 
 LNP_RESET="\e[0m"
-LNP_BOLD="\e[1m"
-LNP_DIM="\e[2m"
-LNP_ITALIC="\e[3m"
-LNP_UNDERLINE="\e[4m"
 
+# Return a string with the color sequence wrapped in \[...\] so it is
+# properly ignored in prompt length calculations.
 lnp::colorize() {
     local color="$1" text="$2"
-    printf "%b" "${color}${text}${LNP_RESET}"
+    # The final format: \[color\]text\[reset\]
+    printf "%b" "\[${color}\]${text}\[${LNP_RESET}\]"
 }

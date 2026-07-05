@@ -1,4 +1,4 @@
-# core/renderer.sh - Build PS1 from context and theme
+# core/renderer.sh - Build PS1 from context and theme (no extra escaping)
 
 lnp::renderer::prompt() {
     local ps1=""
@@ -43,7 +43,7 @@ lnp::renderer::prompt() {
     # Prompt symbol
     ps1+="${sep}$(lnp::colorize "$LNP_COLOR_PROMPT_SYMBOL" "$LNP_SYMBOL_PROMPT") "
 
-    PS1="\[${ps1}\]"
+    PS1="$ps1"
 }
 
 # Build the git status segment string
